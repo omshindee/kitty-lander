@@ -88,14 +88,14 @@ public class LevelPlaythroughTests
         Assert.IsTrue(Pad.Instance.gameObject.activeSelf, "pad did not open");
         // Hover above the pad while it pops in (pad top is ~0.565 above its root at full size),
         // then drop in gently.
-        Vector2 above = (Vector2)Pad.Instance.transform.position + new Vector2(0f, 0.565f + 1.27f + 0.5f);
+        Vector2 above = (Vector2)Pad.Instance.transform.position + new Vector2(0f, 0.565f + 1.27f + 0.15f);
         for (float w = 0f; w < 1.2f; w += Time.fixedDeltaTime)
         {
             Teleport(lander, above, Vector2.zero);
             yield return new WaitForFixedUpdate();
         }
         Assert.AreEqual(Lander.State.Flying, lander.CurrentState, "crashed while waiting above the pad: " + lander.CrashReason);
-        Teleport(lander, above, new Vector2(0f, -1f));
+        Teleport(lander, above, new Vector2(0f, -0.5f));
         float t = 0f;
         while (lander.CurrentState == Lander.State.Flying && t < 5f)
         {
@@ -110,6 +110,31 @@ public class LevelPlaythroughTests
         var result = GameObject.Find("HUD Canvas").transform.Find("Result");
         Assert.IsTrue(result.gameObject.activeSelf, "result screen not shown");
         Assert.GreaterOrEqual(Progress.HighestUnlocked, Mathf.Min(level + 1, Progress.LevelCount));
+    }
+
+    [UnityTest]
+    public IEnumerator FreeFallOntoPad_Crashes([Values(2, 10)] int level)
+    {
+        yield return Load(level);
+        var lander = Lander.Instance;
+        foreach (var h in Object.FindObjectsByType<Hazard>(FindObjectsInactive.Exclude)) h.gameObject.SetActive(false);
+        lander.Launch();
+        Pad.Instance.Show();
+        // Hold the lander high above the pad while it pops in, then let it drop with no thrust.
+        Vector2 high = (Vector2)Pad.Instance.transform.position + new Vector2(0f, 9f);
+        for (float w = 0f; w < 1.2f; w += Time.fixedDeltaTime)
+        {
+            Teleport(lander, high, Vector2.zero);
+            yield return new WaitForFixedUpdate();
+        }
+        float t = 0f;
+        while (lander.CurrentState == Lander.State.Flying && t < 8f)
+        {
+            t += Time.deltaTime;
+            yield return null;
+        }
+        Assert.AreEqual(Lander.State.Crashed, lander.CurrentState, "a free fall onto the pad should crash");
+        StringAssert.Contains("Too fast", lander.CrashReason);
     }
 
     [UnityTest]

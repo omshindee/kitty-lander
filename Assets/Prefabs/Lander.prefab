@@ -412,9 +412,9 @@ MonoBehaviour:
   turnSpeed: 10
   rotationForce: 0.2
   maxFuel: 30
-  mainBurnPerSecond: 1
-  sideBurnPerSecond: 0.5
-  maxLandingSpeed: 6
+  mainBurnPerSecond: 2
+  sideBurnPerSecond: 1
+  maxLandingSpeed: 3
   leftLeg: {fileID: 1684828745688670657}
   rightLeg: {fileID: 170618543232603313}
   idle: {fileID: 21300000, guid: ec04ceaac2d27ea4bb9a9fdee54223dc, type: 3}

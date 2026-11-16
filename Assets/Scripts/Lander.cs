@@ -24,11 +24,12 @@ public class Lander : MonoBehaviour
 
     [Header("Fuel (units = seconds of main-thruster burn)")]
     [SerializeField] private float maxFuel = 30f;
-    [SerializeField] private float mainBurnPerSecond = 1f;
-    [SerializeField] private float sideBurnPerSecond = 0.5f;
+    [SerializeField] private float mainBurnPerSecond = 2f;
+    [SerializeField] private float sideBurnPerSecond = 1f;
 
     [Header("Landing")]
-    [SerializeField] private float maxLandingSpeed = 6f;
+    [Tooltip("Touchdown faster than this crashes. NOTE: the value on the Lander prefab overrides this default.")]
+    [SerializeField] private float maxLandingSpeed = 3f;
 
     [SerializeField] private LanderLegs leftLeg;
     [SerializeField] private LanderLegs rightLeg;
@@ -186,7 +187,17 @@ public class Lander : MonoBehaviour
 
         if (collision.gameObject.TryGetComponent(out Pad pad))
         {
-            landingSpeed = collision.relativeVelocity.magnitude;
+            // Keep the hardest impact of this touchdown: after a fast hit the lander
+            // bounces, and the later gentle contacts must not overwrite the real speed.
+            float impact = collision.relativeVelocity.magnitude;
+            landingSpeed = Mathf.Max(landingSpeed, impact);
+            Debug.Log($"Lander: pad impact = {impact:0.00}, touchdown speed = {landingSpeed:0.00} (max {maxLandingSpeed})");
+            if (landingSpeed >= maxLandingSpeed)
+            {
+                CancelInvoke(nameof(EvaluateLandingStatus));
+                TriggerCrash("Too fast! Land more gently.");
+                return;
+            }
             CancelInvoke(nameof(EvaluateLandingStatus));
             Invoke(nameof(EvaluateLandingStatus), 0.10f);
         }
@@ -204,7 +215,7 @@ public class Lander : MonoBehaviour
 
         if (leftLeg.isGrounded && rightLeg.isGrounded)
         {
-            if (landingSpeed <= maxLandingSpeed)
+            if (landingSpeed < maxLandingSpeed)
             {
                 CurrentState = State.Landed;
                 sr.sprite = happy;
