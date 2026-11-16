@@ -1,18 +1,28 @@
 using UnityEngine;
+using System;
 using System.Collections;
 
 public class Pad : MonoBehaviour
 {
     public static Pad Instance { get; private set; }
 
+    public static event EventHandler OnPadShown;
+
+    public bool IsShown { get; private set; }
+
     private void Awake()
     {
         Instance = this;
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Start()
     {
-        Hide();
+        if (!IsShown) Hide();
     }
 
     private void Hide()
@@ -22,8 +32,10 @@ public class Pad : MonoBehaviour
 
     public void Show()
     {
+        if (IsShown) return;
+        IsShown = true;
         gameObject.SetActive(true);
-
+        OnPadShown?.Invoke(this, EventArgs.Empty);
         StartCoroutine(SpawnAnimation());
     }
 
@@ -37,11 +49,10 @@ public class Pad : MonoBehaviour
         while (time < duration)
         {
             time += Time.deltaTime;
-
-            float scale = Mathf.Lerp(0f, 1f, time / duration);
-
+            // little overshoot "pop"
+            float t = Mathf.Clamp01(time / duration);
+            float scale = 1f + 2.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
             transform.localScale = Vector3.one * scale;
-
             yield return null;
         }
 
