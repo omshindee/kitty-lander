@@ -8,7 +8,6 @@ public class LanderLegs : MonoBehaviour
         if(collision.gameObject.TryGetComponent(out Pad pad))
         {
             isGrounded = true;
-            Debug.Log("Left " + isGrounded);
         }
     }
     private void OnCollisionExit2D(Collision2D collision)
@@ -16,7 +15,6 @@ public class LanderLegs : MonoBehaviour
         if(collision.gameObject.TryGetComponent(out Pad pad))
         {
             isGrounded = false;
-            Debug.Log("Left " + isGrounded);
         }
     }
 }

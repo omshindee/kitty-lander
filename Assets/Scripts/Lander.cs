@@ -1,18 +1,32 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
-public class Kitty : MonoBehaviour
+public class Lander : MonoBehaviour
 {
+    public static Lander Instance { get; private set; }
+
     private Rigidbody2D rb;
     private SpriteRenderer sr;
-    private StateMachine state;
 
-    private float upSpeed = 700f;
-    private float rotationForce = 1.5f;
+    private float upSpeed = 14f;
+    private float turnSpeed = 10f;
+
+    private float rotationForce = 0.2f;
+    private float fuelAmount = 1000;
+
+    private float landingSpeed;
 
     [SerializeField] private LanderLegs leftLeg;
-    [SerializeField] private LanderLegsRight rightLeg;
-    private bool landingCheck;
+    [SerializeField] private LanderLegs rightLeg;
+
+    public event EventHandler OnCrash;
+    public event EventHandler OnUp;
+    public event EventHandler OnLeft;
+    public event EventHandler OnRight;
+    public event EventHandler OnBeforeForce;
+    
+    private StateMachine state;
     private enum StateMachine
     {
         normal,
@@ -25,6 +39,7 @@ public class Kitty : MonoBehaviour
     [SerializeField] private Sprite happy;
     private void Awake()
     {
+        Instance = this;
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponentInChildren<SpriteRenderer>();
     }
@@ -36,33 +51,51 @@ public class Kitty : MonoBehaviour
             default:
                 sr.sprite = idle;
 
+                OnBeforeForce?.Invoke(this, EventArgs.Empty);
 
-                if (Keyboard.current.wKey.isPressed)
+                if(Keyboard.current.wKey.isPressed || Keyboard.current.aKey.isPressed || Keyboard.current.dKey.isPressed)
                 {
-
-                    rb.AddForce(upSpeed * transform.up * Time.deltaTime);
+                    OnFuelConsume();
                 }
-                if (Keyboard.current.aKey.isPressed)
+                if(fuelAmount >= 0)
                 {
+                    if (Keyboard.current.wKey.isPressed)
+                    {
 
-                    sr.sprite = left;
-                    rb.AddForce(500f * (-transform.right) * Time.deltaTime);
-                    rb.AddTorque(rotationForce);
+                        rb.AddForce(upSpeed * transform.up);
+                        OnUp?.Invoke(this, EventArgs.Empty);
 
+                        float straightenTorque = 100f;
+                        float currentAngle = Mathf.DeltaAngle(rb.rotation, 0f);
+                        rb.AddTorque(currentAngle * straightenTorque * Time.deltaTime);
+
+                    }
+                    if (Keyboard.current.aKey.isPressed)
+                    {
+
+                        sr.sprite = left;
+                        OnLeft?.Invoke(this, EventArgs.Empty);
+                        rb.AddForce(turnSpeed * (-transform.right));
+                        rb.AddTorque(rotationForce);
+
+                    }
+                    if (Keyboard.current.dKey.isPressed)
+                    {
+                        sr.sprite = right;
+                        OnRight?.Invoke(this, EventArgs.Empty);
+                        rb.AddForce(turnSpeed * transform.right);
+                        rb.AddTorque(-rotationForce);
+
+                    }
+
+                    float currentRotation = rb.rotation;
+
+                    currentRotation = Mathf.Clamp(currentRotation, -2f, 2f);
+
+                    rb.rotation = currentRotation;
                 }
-                if (Keyboard.current.dKey.isPressed)
-                {
-                    sr.sprite = right;
-                    rb.AddForce(500f * transform.right * Time.deltaTime);
-                    rb.AddTorque(-rotationForce);
 
-                }
-
-                float currentRotation = rb.rotation;
-
-                currentRotation = Mathf.Clamp(currentRotation, -2f, 2f);
-
-                rb.rotation = currentRotation;
+              
                 break;
             case (StateMachine.gameOver):
                 break;
@@ -75,12 +108,12 @@ public class Kitty : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (state == StateMachine.gameOver || landingCheck) return;
+        if (state == StateMachine.gameOver) return;
 
         if (collision.gameObject.TryGetComponent(out Pad pad))
         {
-            // Wait exactly 0.05 seconds for BOTH legs to register contact before checking results
-            Invoke(nameof(EvaluateLandingStatus), 0.15f);
+            landingSpeed = collision.relativeVelocity.magnitude;
+            Invoke(nameof(EvaluateLandingStatus), 0.10f);
         }
         else
         {
@@ -89,27 +122,27 @@ public class Kitty : MonoBehaviour
         }
     }
 
+    private void OnFuelConsume()
+    {
+        fuelAmount -= 5 * Time.deltaTime;
+        //Debug.Log(fuelAmount);
+    }
+
     private void EvaluateLandingStatus()
     {
-        // Safety check in case we crashed via obstacle during the delay window
         if (state == StateMachine.gameOver) return;
 
-        float maxLandingSpeed = 1f;
+        float maxLandingSpeed = 6f;
 
-        // Check if BOTH legs successfully stabilized on the pad during the buffer window
         if (leftLeg.isGrounded && rightLeg.isGrounded)
         {
-            if (Mathf.Abs(rb.linearVelocity.y) <= maxLandingSpeed)
+            if (landingSpeed <= maxLandingSpeed)
             {
+                Debug.Log(landingSpeed);
                 Debug.Log("Successful Landing!");
-                landingCheck = true;
+                
                 state = StateMachine.gameOver;
                 sr.sprite = happy;
-
-                // Freeze the ship beautifully on the pad
-                //rb.linearVelocity = Vector2.zero;
-                //rb.angularVelocity = 0f;
-                //rb.bodyType = RigidbodyType2D.Kinematic;
             }
             else
             {
@@ -127,8 +160,8 @@ public class Kitty : MonoBehaviour
 
     private void TriggerCrash()
     {
+        OnCrash?.Invoke(this, EventArgs.Empty);
         state = StateMachine.gameOver;
-        // Set your crash sprite or trigger explosion logic here
     }
     private void OnTriggerEnter2D(Collider2D other)
     {

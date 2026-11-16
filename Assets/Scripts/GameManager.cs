@@ -11,20 +11,17 @@ public class GameManager : MonoBehaviour
     {
         Instance = this;
     }
-
-    private void OnEnable()
+   
+    private void Start()
     {
-        //Fish.OnFishCollected += HandleFishCollected;
+        totalFish = FindObjectsByType<Fish>().Length;
+        Debug.Log(totalFish);
         Fish.OnFishCollected += Fish_OnFishCollected;
     }
 
-    private void OnDisable()
-    {
-       // Fish.OnFishCollected -= HandleFishCollected;
-        Fish.OnFishCollected -= Fish_OnFishCollected;
-    }
     private void Fish_OnFishCollected(object sender, System.EventArgs e)
     {
+        Debug.Log(totalFish);
         collectedFish++;
 
 
@@ -35,21 +32,5 @@ public class GameManager : MonoBehaviour
     }
 
 
-    private void Start()
-    {
-        totalFish = FindObjectsByType<Fish>(FindObjectsSortMode.None).Length;
-    }
-
-    //private void HandleFishCollected()
-    //{
-    //    collectedFish++;
-
-    //    Debug.Log(collectedFish + " / " + totalFish);
-
-    //    if (collectedFish >= totalFish)
-    //    {
-    //        SpawnLandingPad();
-    //    }
-    //}
 
 }
